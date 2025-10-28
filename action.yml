@@ -1,0 +1,147 @@
+name: 'Promote Release to Environment'
+description: 'Promote a GitHub release to target environment using stored digest'
+author: 'P6M Actions'
+
+inputs:
+  tag:
+    description: 'Release tag to promote (e.g., v1.2.3)'
+    required: true
+  environment:
+    description: 'Target environment (dev, stg, prd)'
+    required: true
+  repository:
+    description: 'Repository in owner/repo format'
+    required: true
+  image-name:
+    description: 'Application/image name for manifest update'
+    required: true
+  directory-name:
+    description: 'Directory name in platform manifests'
+    required: false
+    default: ''
+  update-manifest-token:
+    description: 'Token for platform manifest dispatch'
+    required: true
+  platform-dispatch-url:
+    description: 'Platform dispatch API URL'
+    required: true
+  github-token:
+    description: 'GitHub token for release operations'
+    required: false
+    default: ${{ github.token }}
+  update-release-notes:
+    description: 'Append promotion info to release notes'
+    required: false
+    default: 'true'
+
+outputs:
+  digest:
+    description: 'Promoted image digest'
+    value: ${{ steps.extract.outputs.digest }}
+  promotion-timestamp:
+    description: 'Promotion timestamp (UTC)'
+    value: ${{ steps.extract.outputs.timestamp }}
+  manifest-status:
+    description: 'Manifest update status from platform-application-manifest-dispatch'
+    value: ${{ steps.update-manifest.outputs.status }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Extract digest from release
+      id: extract
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+        TZ: UTC
+      run: |
+        # Download digest artifact from release
+        echo "📥 Downloading digest from release ${{ inputs.tag }}"
+        gh release download ${{ inputs.tag }} \
+          --repo ${{ inputs.repository }} \
+          --pattern "digest.txt" \
+          --dir ${{ runner.temp }}
+
+        DIGEST=$(cat ${{ runner.temp }}/digest.txt)
+        echo "digest=$DIGEST" >> $GITHUB_OUTPUT
+
+        # Download metadata if available (optional)
+        echo "📥 Downloading metadata (if available)"
+        gh release download ${{ inputs.tag }} \
+          --repo ${{ inputs.repository }} \
+          --pattern "metadata.json" \
+          --dir ${{ runner.temp }} || echo "No metadata.json found (optional)"
+
+        TIMESTAMP=$(date +'%Y-%m-%d %H:%M:%S %Z')
+        echo "timestamp=$TIMESTAMP" >> $GITHUB_OUTPUT
+
+        echo "📦 Promoting digest: $DIGEST"
+        echo "🎯 Environment: ${{ inputs.environment }}"
+        echo "⏰ Timestamp: $TIMESTAMP"
+
+    - name: Update application manifest
+      id: update-manifest
+      uses: p6m-actions/platform-application-manifest-dispatch@v1
+      with:
+        repository: ${{ inputs.repository }}
+        image-name: ${{ inputs.image-name }}
+        directory-name: ${{ inputs.directory-name || inputs.image-name }}
+        environment: ${{ inputs.environment }}
+        digest: ${{ steps.extract.outputs.digest }}
+        update-manifest-token: ${{ inputs.update-manifest-token }}
+        platform-dispatch-url: ${{ inputs.platform-dispatch-url }}
+
+    - name: Update release notes with promotion history
+      if: inputs.update-release-notes == 'true'
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+      run: |
+        echo "📝 Updating release notes with promotion history"
+
+        # Get current release body
+        gh release view ${{ inputs.tag }} \
+          --repo ${{ inputs.repository }} \
+          --json body -q .body > ${{ runner.temp }}/release_notes.md || echo "" > ${{ runner.temp }}/release_notes.md
+
+        # Append promotion record
+        cat >> ${{ runner.temp }}/release_notes.md <<EOF
+
+        ---
+
+        **Promoted to \`${{ inputs.environment }}\`** by @${{ github.triggering_actor }} on ${{ steps.extract.outputs.timestamp }}
+        EOF
+
+        # Update release
+        gh release edit ${{ inputs.tag }} \
+          --repo ${{ inputs.repository }} \
+          --notes-file ${{ runner.temp }}/release_notes.md
+
+        echo "✅ Updated release notes with promotion history"
+
+    - name: Output summary
+      shell: bash
+      run: |
+        cat >> $GITHUB_STEP_SUMMARY <<EOF
+        # Promotion Summary
+
+        ## Release Information
+        - **Tag**: \`${{ inputs.tag }}\`
+        - **Repository**: \`${{ inputs.repository }}\`
+
+        ## Deployment Details
+        - **Environment**: \`${{ inputs.environment }}\`
+        - **Image**: \`${{ inputs.image-name }}\`
+        - **Digest**: \`${{ steps.extract.outputs.digest }}\`
+
+        ## Promotion Metadata
+        - **Promoted By**: @${{ github.triggering_actor }}
+        - **Timestamp**: ${{ steps.extract.outputs.timestamp }}
+
+        ## Status
+        ✅ Successfully promoted to **${{ inputs.environment }}**
+        EOF
+
+branding:
+  icon: 'upload-cloud'
+  color: 'purple'
