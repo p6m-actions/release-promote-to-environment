@@ -24,8 +24,8 @@ Promote any GitHub release to any environment without rebuilding. Downloads the 
     environment: prd
     repository: ${{ github.repository }}
     image-name: my-app
-    update-manifest-token: ${{ secrets.UPDATE_MANIFEST_TOKEN }}
-    platform-dispatch-url: ${{ vars.PLATFORM_DISPATCH_URL }}
+    update-manifest-token: ${{ secrets.P6M_UPDATE_MANIFEST_TOKEN }}
+    platform-dispatch-url: ${{ vars.P6M_PLATFORM_DISPATCH_URL }}
 ```
 
 ### Full Promotion Workflow
@@ -66,8 +66,8 @@ jobs:
           environment: ${{ inputs.environment }}
           repository: ${{ github.repository }}
           image-name: my-app
-          update-manifest-token: ${{ secrets.UPDATE_MANIFEST_TOKEN }}
-          platform-dispatch-url: ${{ vars.PLATFORM_DISPATCH_URL }}
+          update-manifest-token: ${{ secrets.P6M_UPDATE_MANIFEST_TOKEN }}
+          platform-dispatch-url: ${{ vars.P6M_PLATFORM_DISPATCH_URL }}
 ```
 
 ### Rollback Example
@@ -82,8 +82,8 @@ Rollback is just promoting an older release:
     environment: prd
     repository: ${{ github.repository }}
     image-name: my-app
-    update-manifest-token: ${{ secrets.UPDATE_MANIFEST_TOKEN }}
-    platform-dispatch-url: ${{ vars.PLATFORM_DISPATCH_URL }}
+    update-manifest-token: ${{ secrets.P6M_UPDATE_MANIFEST_TOKEN }}
+    platform-dispatch-url: ${{ vars.P6M_PLATFORM_DISPATCH_URL }}
 ```
 
 ## Inputs
@@ -296,10 +296,10 @@ permissions:
 
 ```yaml
 secrets:
-  UPDATE_MANIFEST_TOKEN: ${{ secrets.UPDATE_MANIFEST_TOKEN }}
+  P6M_UPDATE_MANIFEST_TOKEN: ${{ secrets.P6M_UPDATE_MANIFEST_TOKEN }}
 
 vars:
-  PLATFORM_DISPATCH_URL: ${{ vars.PLATFORM_DISPATCH_URL }}
+  P6M_PLATFORM_DISPATCH_URL: ${{ vars.P6M_PLATFORM_DISPATCH_URL }}
 ```
 
 ## License
