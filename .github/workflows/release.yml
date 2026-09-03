@@ -27,7 +27,7 @@ jobs:
           fetch-depth: 0 # Fetch all history and tags
 
       - name: Run GitHub Repository Release Action
-        uses: p6m-actions/repository-release@v1
+        uses: archetect-actions/repository-release@v1
         with:
           release_type: ${{ github.event.inputs.release_type }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
